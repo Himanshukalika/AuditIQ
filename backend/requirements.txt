@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+sqlalchemy
+pydantic
+requests
+pdfplumber
+pandas
+openpyxl
+rapidfuzz
+python-multipart

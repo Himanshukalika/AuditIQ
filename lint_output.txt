@@ -1,0 +1,28 @@
+
+> audit-iq@0.1.0 lint
+> eslint
+
+
+/Users/himanshumac/Desktop/AuditIQ/lib/api.ts
+  50:18  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  51:30  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  59:47  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  78:40  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  81:36  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  89:39  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/himanshumac/Desktop/AuditIQ/src/app/bank/page.tsx
+  6:8  warning  'clsx' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/himanshumac/Desktop/AuditIQ/src/app/components/Sidebar.tsx
+  5:33  warning  'Search' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/himanshumac/Desktop/AuditIQ/src/app/observations/page.tsx
+  5:8  warning  'clsx' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/himanshumac/Desktop/AuditIQ/src/app/page.tsx
+  4:3   warning  'Building2' is defined but never used     @typescript-eslint/no-unused-vars
+  4:14  warning  'ChevronRight' is defined but never used  @typescript-eslint/no-unused-vars
+
+✖ 11 problems (6 errors, 5 warnings)
+
