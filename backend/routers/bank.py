@@ -21,11 +21,16 @@ def detect_bank(text: str) -> str:
 
 
 def normalize_amount(val) -> float:
-    if val is None or str(val).strip() in ["", "-", "—", "Nil"]:
+    if val is None:
         return 0.0
-    val = str(val).replace(",", "").replace("₹", "").strip()
+    s = str(val).strip().lower()
+    if s in ("", "-", "—", "nil", "nan", "none") or s.startswith("*"):
+        return 0.0
+    s = s.replace(",", "").replace("₹", "").replace(" ", "")
     try:
-        return abs(float(val))
+        result = abs(float(s))
+        import math
+        return 0.0 if math.isnan(result) or math.isinf(result) else result
     except Exception:
         return 0.0
 
@@ -33,7 +38,12 @@ def normalize_amount(val) -> float:
 def normalize_date(val) -> str:
     if val is None:
         return ""
+    if isinstance(val, datetime):
+        return val.strftime("%Y-%m-%d")
     val = str(val).strip()
+    # Handle pandas 'YYYY-MM-DD HH:MM:SS' strings
+    if " " in val:
+        val = val.split(" ")[0]
     for fmt in ["%d-%m-%Y", "%d/%m/%Y", "%Y-%m-%d", "%d %b %Y", "%d-%b-%Y", "%d/%m/%y"]:
         try:
             return datetime.strptime(val, fmt).strftime("%Y-%m-%d")
@@ -91,6 +101,52 @@ def parse_pdf_statement(content: bytes) -> list:
     return entries
 
 
+def extract_party_from_narration(narration: str) -> str:
+    """Extract human-readable party name from HDFC/bank narration strings."""
+    if not narration:
+        return ""
+    n     = narration.strip()
+    upper = n.upper()
+
+    if upper.startswith("FT "):
+        parts = [p.strip() for p in n.split(" - ")]
+        if len(parts) >= 4:
+            return parts[-1]
+
+    if upper.startswith("NEFT"):
+        parts = [p.strip() for p in n.split("-")]
+        if len(parts) >= 3:
+            return parts[2]
+
+    if upper.startswith("IMPS"):
+        parts = [p.strip() for p in n.split("-")]
+        if len(parts) >= 3:
+            return parts[2]
+
+    if "CHQ" in upper:
+        parts = [p.strip() for p in re.split(r"[-/]", n)]
+        for p in reversed(parts):
+            if p and not re.match(r"^[\*\s\d]+$", p) and len(p) > 3:
+                return p
+
+    tpt = re.search(r"-TPT-HI-(.+)$", n, re.IGNORECASE)
+    if tpt:
+        return tpt.group(1).strip()
+
+    if upper.startswith("UPI"):
+        vpa = re.search(r"([A-Z0-9][A-Z0-9.]*@[A-Z][A-Z0-9]*)", n, re.IGNORECASE)
+        if vpa:
+            username = vpa.group(1).split("@")[0]
+            if re.match(r"^\d+$", username):
+                return ""
+            parts   = username.split(".")
+            cleaned = [re.sub(r"\d+$", "", p) for p in parts]
+            name    = " ".join(p for p in cleaned if len(p) > 2)
+            return name.strip() if name.strip() else username
+
+    return ""
+
+
 def parse_excel_statement(content: bytes, filename: str) -> list:
     entries = []
     df = pd.read_excel(io.BytesIO(content), header=None)
@@ -108,7 +164,10 @@ def parse_excel_statement(content: bytes, filename: str) -> list:
     header_row = None
     for i, row in df.iterrows():
         row_lower = [str(v).lower() for v in row if pd.notna(v)]
-        if any("date" in v for v in row_lower):
+        date_found = any("date" in v for v in row_lower)
+        desc_found = any(x in v for v in row_lower for x in ["desc", "narr", "particular", "detail"])
+        amt_found  = any(x in v for v in row_lower for x in ["bal", "withdraw", "deposit", "debit", "credit", "amount"])
+        if date_found and desc_found and amt_found:
             header_row = i
             break
 
@@ -130,12 +189,18 @@ def parse_excel_statement(content: bytes, filename: str) -> list:
 
     for _, row in df.iterrows():
         date = normalize_date(row.get(date_col))
-        if not date:
+        # Strict check — must be a valid YYYY-MM-DD date, skip garbage rows
+        if not date or not re.match(r'^\d{4}-\d{2}-\d{2}$', date):
             continue
+        raw_desc = str(row.get(desc_col, "")).strip() if desc_col else ""
+        if raw_desc.lower() in ("nan", "") or raw_desc.startswith("*"):
+            continue
+        party = extract_party_from_narration(raw_desc)
+        desc  = f"{party} | {raw_desc}" if party else raw_desc
         entries.append({
             "bank_name":        bank_name,
             "transaction_date": date,
-            "description":      str(row.get(desc_col, "")).strip() if desc_col else "",
+            "description":      desc,
             "debit":            normalize_amount(row.get(debit_col))  if debit_col  else 0.0,
             "credit":           normalize_amount(row.get(credit_col)) if credit_col else 0.0,
             "balance":          normalize_amount(row.get(balance_col)) if balance_col else 0.0,
@@ -181,11 +246,20 @@ async def upload_bank_statement(
     if not entries:
         raise HTTPException(400, "No transactions found in file. Check file format.")
 
-    # Save to DB
+    # Delete old bank entries for this client (fresh upload)
+    db.query(BankEntry).filter(BankEntry.client_id == client_id).delete()
+
+    # Save clean entries — strict date validation, no NaN/NULL amounts
     saved = 0
+    import re as _re
     for e in entries:
-        if not e["transaction_date"]:
+        date = e.get("transaction_date", "")
+        if not date or not _re.match(r'^\d{4}-\d{2}-\d{2}$', date):
             continue
+        # Ensure no None/NaN in numeric fields
+        e["debit"]   = e.get("debit")   or 0.0
+        e["credit"]  = e.get("credit")  or 0.0
+        e["balance"] = e.get("balance") or 0.0
         entry = BankEntry(client_id=client_id, source_file=file.filename, **e)
         db.add(entry)
         saved += 1

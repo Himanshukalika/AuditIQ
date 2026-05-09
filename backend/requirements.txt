@@ -6,5 +6,7 @@ requests
 pdfplumber
 pandas
 openpyxl
+xlrd
 rapidfuzz
 python-multipart
+python-dateutil

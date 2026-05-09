@@ -40,6 +40,83 @@ def client_to_dict(c: Client):
     }
 
 
+@router.get("/dashboard")
+def dashboard_summary(firm_id: int, db: Session = Depends(get_db)):
+    """Single endpoint for the dashboard — stats + client list + active client progress."""
+    clients = db.query(Client).filter(Client.firm_id == firm_id).order_by(Client.created_at.desc()).all()
+
+    total      = len(clients)
+    completed  = sum(1 for c in clients if c.audit_status == "completed")
+    in_progress = sum(1 for c in clients if c.audit_status not in ("completed", "pending", "error"))
+    pending    = sum(1 for c in clients if c.audit_status == "pending")
+
+    # Total flagged entries across all clients
+    total_flagged = 0
+    total_flag_amount = 0.0
+    for c in clients:
+        recons = db.query(Reconciliation).filter(
+            Reconciliation.client_id == c.id,
+            Reconciliation.flag_type != "none"
+        ).all()
+        total_flagged += len(recons)
+        for r in recons:
+            if r.tally_entry_id:
+                te = db.query(TallyEntry).filter(TallyEntry.id == r.tally_entry_id).first()
+                if te:
+                    total_flag_amount += abs(te.amount or 0)
+
+    # Client rows with counts
+    client_rows = []
+    for c in clients:
+        tally_count = db.query(TallyEntry).filter(TallyEntry.client_id == c.id).count()
+        bank_count  = db.query(BankEntry).filter(BankEntry.client_id == c.id).count()
+        flagged     = db.query(Reconciliation).filter(
+            Reconciliation.client_id == c.id,
+            Reconciliation.flag_type != "none"
+        ).count()
+        client_rows.append({
+            **client_to_dict(c),
+            "tally_count":   tally_count,
+            "bank_count":    bank_count,
+            "flagged_count": flagged,
+        })
+
+    # Active client — highest progress, not completed
+    active = next(
+        (c for c in sorted(clients, key=lambda x: -(x.audit_progress_pct or 0))
+         if c.audit_status not in ("completed", "pending")),
+        clients[0] if clients else None
+    )
+    active_detail = None
+    if active:
+        recon = db.query(Reconciliation).filter(Reconciliation.client_id == active.id).all()
+        active_detail = {
+            "id":           active.id,
+            "name":         active.client_name,
+            "status":       active.audit_status,
+            "progress":     active.audit_progress_pct or 0,
+            "tally_count":  db.query(TallyEntry).filter(TallyEntry.client_id == active.id).count(),
+            "bank_count":   db.query(BankEntry).filter(BankEntry.client_id == active.id).count(),
+            "recon_total":  len(recon),
+            "recon_exact":  sum(1 for r in recon if r.match_type == "exact"),
+            "recon_fuzzy":  sum(1 for r in recon if r.match_type == "fuzzy"),
+            "recon_flagged": sum(1 for r in recon if r.flag_type != "none"),
+        }
+
+    return {
+        "stats": {
+            "total_clients":    total,
+            "completed":        completed,
+            "in_progress":      in_progress,
+            "pending":          pending,
+            "total_flagged":    total_flagged,
+            "total_flag_amount": total_flag_amount,
+        },
+        "clients":       client_rows,
+        "active_client": active_detail,
+    }
+
+
 @router.get("/")
 def list_clients(
     firm_id: int,

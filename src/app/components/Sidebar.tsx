@@ -3,20 +3,21 @@
 import React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { 
-  LayoutDashboard, Users, FileText, 
-  Settings, HelpCircle, LogOut
+import {
+  LayoutDashboard, Users, FileText,
+  Settings, HelpCircle, LogOut, ShieldCheck
 } from 'lucide-react'
 
 export default function Sidebar() {
   const pathname = usePathname()
 
   const menuItems = [
-    { icon: <LayoutDashboard size={18} />, label: 'Dashboard', href: '/' },
-    { icon: <Users size={18} />, label: 'Clients', href: '/clients' },
-    { icon: <FileText size={18} />, label: 'Reports', href: '/observations' },
-    { icon: <FileText size={18} />, label: 'Form 3CD', href: '/form3cd' },
-    { icon: <Settings size={18} />, label: 'Settings', href: '#' },
+    { icon: <LayoutDashboard size={18} />, label: 'Dashboard',    href: '/' },
+    { icon: <Users size={18} />,           label: 'Clients',      href: '/clients' },
+    { icon: <FileText size={18} />,        label: 'Reports',      href: '/observations' },
+    { icon: <FileText size={18} />,        label: 'Form 3CD',     href: '/form3cd' },
+    { icon: <ShieldCheck size={18} />,     label: 'Audit Rules',  href: '/rules' },
+    { icon: <Settings size={18} />,        label: 'Settings',     href: '#' },
   ]
 
   return (

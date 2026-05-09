@@ -3,8 +3,8 @@ import axios from 'axios'
 // ── Axios instance ────────────────────────────────────────
 // Python FastAPI backend localhost:8080 pe chal raha hai
 const api = axios.create({
-  baseURL: 'http://localhost:8080/api/v1',
-  timeout: 30000,
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1',
+  timeout: 180000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -45,24 +45,24 @@ export default api
 
 // Clients
 export const clientsApi = {
-  list:   (search?: string) => api.get('/clients', { params: { search } }),
-  get:    (id: string)      => api.get(`/clients/${id}`),
-  create: (data: unknown)       => api.post('/clients', data),
+  list: (search?: string) => api.get('/clients', { params: { search } }),
+  get: (id: string) => api.get(`/clients/${id}`),
+  create: (data: unknown) => api.post('/clients', data),
   update: (id: string, data: unknown) => api.put(`/clients/${id}`, data),
-  delete: (id: string)      => api.delete(`/clients/${id}`),
+  delete: (id: string) => api.delete(`/clients/${id}`),
 }
 
 // Tally
 export const tallyApi = {
-  testConnection: ()             => api.get('/tally/test-connection'),
-  sync:           (clientId: string) => api.post(`/tally/sync/${clientId}`),
-  entries:        (clientId: string, params?: Record<string, unknown>) =>
+  testConnection: () => api.get('/tally/test-connection'),
+  sync: (clientId: string) => api.post(`/tally/sync/${clientId}`),
+  entries: (clientId: string, params?: Record<string, unknown>) =>
     api.get(`/tally/entries/${clientId}`, { params }),
 }
 
 // Bank
 export const bankApi = {
-  upload:  (clientId: string, file: File) => {
+  upload: (clientId: string, file: File) => {
     const form = new FormData()
     form.append('file', file)
     return api.post(`/bank/upload/${clientId}`, form, {
@@ -74,19 +74,19 @@ export const bankApi = {
 
 // Reconciliation
 export const reconApi = {
-  start:   (clientId: string) => api.post(`/recon/start/${clientId}`),
+  start: (clientId: string) => api.post(`/recon/start/${clientId}`),
   results: (clientId: string, params?: Record<string, unknown>) =>
     api.get(`/recon/results/${clientId}`, { params }),
   summary: (clientId: string) => api.get(`/recon/summary/${clientId}`),
-  review:  (reconId: string, data: unknown) =>
+  review: (reconId: string, data: unknown) =>
     api.put(`/recon/review/${reconId}`, data),
 }
 
 // AI Observations
 export const aiApi = {
-  analyze:      (clientId: string) => api.post(`/ai/analyze/${clientId}`),
+  analyze: (clientId: string) => api.post(`/ai/analyze/${clientId}`),
   observations: (clientId: string) => api.get(`/ai/observations/${clientId}`),
-  review:       (obsId: string, data: unknown) =>
+  review: (obsId: string, data: unknown) =>
     api.put(`/ai/observations/${obsId}/review`, data),
 }
 

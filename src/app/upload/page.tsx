@@ -3,40 +3,43 @@
 import { useState, useCallback } from 'react'
 import { useDropzone } from 'react-dropzone'
 import {
-    RefreshCw, CheckCircle2, Upload, FolderOpen,
-    FileText, Shield, Database, ChevronRight, Play
+  RefreshCw, CheckCircle2, Upload, FolderOpen,
+  FileText, Shield, Database, ChevronRight, Play
 } from 'lucide-react'
 
 import Link from 'next/link'
 
 import clsx from 'clsx'
 import api from '@/lib/api'
- 
+
 // Hardcoded client for now — baad mein URL params se aayega
-const CLIENT_ID = 1
-const FIRM_ID   = 1
- 
+const CLIENT_ID = 4
+const FIRM_ID = 1
+
 interface TallyStatus { connected: boolean; message: string }
-interface SyncResult  { synced_count: number; message: string }
- 
+interface SyncResult { synced_count: number; message: string }
+
 type UploadStatus = 'done' | 'pending' | 'uploading' | 'error'
 interface UploadItem { id: string; icon: React.ReactNode; label: string; sub: string; status: UploadStatus; iconBg: string }
- 
+
 const INITIAL_ITEMS: UploadItem[] = [
-  { id: 'tally', icon: <Database size={16} color="#2E5BE8" />,  label: 'Tally XML Export',      sub: 'Sync button se auto-fetch',     status: 'pending', iconBg: '#EEF2FD' },
-  { id: 'bank',  icon: <FileText  size={16} color="#9BA3BF" />, label: 'Bank Statement',         sub: 'PDF ya Excel upload karo',      status: 'pending', iconBg: '#F7F8FC' },
-  { id: 'gstr',  icon: <FileText  size={16} color="#9BA3BF" />, label: 'GSTR-2B JSON',           sub: 'GST portal se download karo',   status: 'pending', iconBg: '#F7F8FC' },
-  { id: 'ais',   icon: <FileText  size={16} color="#9BA3BF" />, label: 'Form 26AS / AIS',        sub: 'Traces se download karo',       status: 'pending', iconBg: '#F7F8FC' },
-  { id: 'tds',   icon: <FileText  size={16} color="#9BA3BF" />, label: 'TDS Challans',           sub: 'PDF upload karo',               status: 'pending', iconBg: '#F7F8FC' },
-  { id: 'esi',   icon: <Shield    size={16} color="#9BA3BF" />, label: 'ESI / PF Challans',      sub: 'PDF upload karo',               status: 'pending', iconBg: '#F7F8FC' },
+  { id: 'tally', icon: <Database size={16} color="#2E5BE8" />, label: 'Tally XML Export', sub: 'Sync button se auto-fetch', status: 'pending', iconBg: '#EEF2FD' },
+  { id: 'bank', icon: <FileText size={16} color="#9BA3BF" />, label: 'Bank Statement', sub: 'PDF ya Excel upload karo', status: 'pending', iconBg: '#F7F8FC' },
+  { id: 'gstr', icon: <FileText size={16} color="#9BA3BF" />, label: 'GSTR-2B JSON', sub: 'GST portal se download karo', status: 'pending', iconBg: '#F7F8FC' },
+  { id: 'ais', icon: <FileText size={16} color="#9BA3BF" />, label: 'Form 26AS / AIS', sub: 'Traces se download karo', status: 'pending', iconBg: '#F7F8FC' },
+  { id: 'tds', icon: <FileText size={16} color="#9BA3BF" />, label: 'TDS Challans', sub: 'PDF upload karo', status: 'pending', iconBg: '#F7F8FC' },
+  { id: 'esi', icon: <Shield size={16} color="#9BA3BF" />, label: 'ESI / PF Challans', sub: 'PDF upload karo', status: 'pending', iconBg: '#F7F8FC' },
 ]
- 
+
 function TallySyncCard({ onSyncDone }: { onSyncDone: (count: number) => void }) {
-  const [status,   setStatus]   = useState<TallyStatus | null>(null)
-  const [syncing,  setSyncing]  = useState(false)
-  const [result,   setResult]   = useState<SyncResult | null>(null)
-  const [testing,  setTesting]  = useState(false)
- 
+  const [status, setStatus] = useState<TallyStatus | null>(null)
+  const [syncing, setSyncing] = useState(false)
+  const [result, setResult] = useState<SyncResult | null>(null)
+  const [testing, setTesting] = useState(false)
+
+  const [fromDate, setFromDate] = useState('2024-04-01')
+  const [toDate, setToDate] = useState('2025-03-31')
+
   const testConnection = async () => {
     setTesting(true)
     try {
@@ -46,18 +49,22 @@ function TallySyncCard({ onSyncDone }: { onSyncDone: (count: number) => void }) 
       setStatus({ connected: false, message: 'Backend se connect nahi hua' })
     } finally { setTesting(false) }
   }
- 
+
   const syncTally = async () => {
     setSyncing(true); setResult(null)
     try {
-      const res = await api.post(`/tally/sync/${CLIENT_ID}`)
+      const formattedFrom = fromDate.split('-').reverse().join('-')
+      const formattedTo = toDate.split('-').reverse().join('-')
+      const res = await api.post(`/tally/sync/${CLIENT_ID}`, null, {
+        params: { from_date: formattedFrom, to_date: formattedTo }
+      })
       setResult(res.data)
       onSyncDone(res.data.synced_count)
     } catch (e: any) {
       setResult({ synced_count: 0, message: e.response?.data?.detail || 'Sync failed — Tally open hai?' })
     } finally { setSyncing(false) }
   }
- 
+
   return (
     <div className="rounded-xl border overflow-hidden shadow-card" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
       <div className="flex items-center justify-between px-5 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
@@ -71,7 +78,7 @@ function TallySyncCard({ onSyncDone }: { onSyncDone: (count: number) => void }) 
           </span>
         )}
       </div>
- 
+
       <div className="p-5">
         {/* Result message */}
         {result && (
@@ -80,13 +87,13 @@ function TallySyncCard({ onSyncDone }: { onSyncDone: (count: number) => void }) 
             {result.message}
           </div>
         )}
- 
+
         {/* Stats */}
         <div className="grid grid-cols-3 gap-3 mb-4">
           {[
-            { val: result?.synced_count || '—', label: 'Vouchers',  color: '#2E5BE8', bg: '#EEF2FD' },
-            { val: '—',                          label: 'Ledgers',   color: '#7C3AED', bg: '#F3E8FF' },
-            { val: '—',                          label: 'Parties',   color: '#166534', bg: '#DCFCE7' },
+            { val: result?.synced_count || '—', label: 'Vouchers', color: '#2E5BE8', bg: '#EEF2FD' },
+            { val: '—', label: 'Ledgers', color: '#7C3AED', bg: '#F3E8FF' },
+            { val: '—', label: 'Parties', color: '#166534', bg: '#DCFCE7' },
           ].map(s => (
             <div key={s.label} className="rounded-lg p-3 border text-center" style={{ background: s.bg, borderColor: 'var(--border)' }}>
               <div className="text-[22px] font-extrabold" style={{ color: s.color }}>{s.val}</div>
@@ -94,13 +101,29 @@ function TallySyncCard({ onSyncDone }: { onSyncDone: (count: number) => void }) 
             </div>
           ))}
         </div>
- 
+
+        {/* Date Selection */}
+        <div className="flex gap-3 mb-4">
+          <div className="flex-1">
+            <label className="block text-[11px] font-semibold mb-1.5" style={{ color: 'var(--text2)' }}>From Date</label>
+            <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border text-[12px] outline-none"
+              style={{ background: 'var(--surface2)', borderColor: 'var(--border2)', color: 'var(--text)' }} />
+          </div>
+          <div className="flex-1">
+            <label className="block text-[11px] font-semibold mb-1.5" style={{ color: 'var(--text2)' }}>To Date</label>
+            <input type="date" value={toDate} onChange={e => setToDate(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border text-[12px] outline-none"
+              style={{ background: 'var(--surface2)', borderColor: 'var(--border2)', color: 'var(--text)' }} />
+          </div>
+        </div>
+
         {/* Tally instruction */}
         <div className="mb-4 px-3 py-2.5 rounded-lg border text-[11px]"
           style={{ background: '#EEF2FD', borderColor: 'rgba(46,91,232,0.2)', color: '#2E5BE8' }}>
           ℹ️ TallyPrime mein: F12 → Advanced Config → Enable ODBC Server → Port 9000
         </div>
- 
+
         {/* Buttons */}
         <div className="flex gap-2">
           <button onClick={testConnection} disabled={testing}
@@ -118,12 +141,12 @@ function TallySyncCard({ onSyncDone }: { onSyncDone: (count: number) => void }) 
     </div>
   )
 }
- 
+
 function BankUploadCard({ onUploaded }: { onUploaded: (filename: string) => void }) {
   const [uploading, setUploading] = useState(false)
-  const [result,    setResult]    = useState<any>(null)
-  const [error,     setError]     = useState('')
- 
+  const [result, setResult] = useState<any>(null)
+  const [error, setError] = useState('')
+
   const uploadFile = async (file: File) => {
     setUploading(true); setResult(null); setError('')
     const form = new FormData()
@@ -138,13 +161,13 @@ function BankUploadCard({ onUploaded }: { onUploaded: (filename: string) => void
       setError(e.response?.data?.detail || 'Upload failed — file format check karo')
     } finally { setUploading(false) }
   }
- 
+
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop: files => files[0] && uploadFile(files[0]),
-    accept: { 'application/pdf': ['.pdf'], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'], 'text/csv': ['.csv'] },
+    accept: { 'application/pdf': ['.pdf'], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'], 'application/vnd.ms-excel': ['.xls'], 'text/csv': ['.csv'] },
     maxFiles: 1,
   })
- 
+
   return (
     <div className="rounded-xl border overflow-hidden shadow-card" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
       <div className="px-5 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
@@ -170,16 +193,16 @@ function BankUploadCard({ onUploaded }: { onUploaded: (filename: string) => void
           {uploading
             ? <><RefreshCw size={24} className="animate-spin mx-auto mb-2 text-blue-500" /><p className="text-[13px] font-semibold" style={{ color: 'var(--text)' }}>Parsing file…</p></>
             : <><div className="text-3xl mb-2">📂</div>
-               <p className="text-[13px] font-bold mb-1" style={{ color: 'var(--text)' }}>
-                 {isDragActive ? 'Drop here…' : 'Drag & Drop Bank Statement'}
-               </p>
-               <p className="text-[11px] mb-3" style={{ color: 'var(--text3)' }}>PDF, Excel, CSV · Max 50MB</p>
-               <button type="button" className="px-4 py-1.5 rounded-lg text-[12px] font-semibold text-white" style={{ background: 'var(--accent)' }}>Browse File</button>
+              <p className="text-[13px] font-bold mb-1" style={{ color: 'var(--text)' }}>
+                {isDragActive ? 'Drop here…' : 'Drag & Drop Bank Statement'}
+              </p>
+              <p className="text-[11px] mb-3" style={{ color: 'var(--text3)' }}>PDF, Excel, CSV · Max 50MB</p>
+              <button type="button" className="px-4 py-1.5 rounded-lg text-[12px] font-semibold text-white" style={{ background: 'var(--accent)' }}>Browse File</button>
             </>
           }
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
-          {['HDFC','SBI','ICICI','Axis','PNB'].map(b => (
+          {['HDFC', 'SBI', 'ICICI', 'Axis', 'PNB'].map(b => (
             <span key={b} className="px-2.5 py-1 rounded-full text-[10px] font-semibold border"
               style={{ background: '#DCFCE7', borderColor: 'rgba(22,101,52,0.3)', color: '#166534' }}>✓ {b}</span>
           ))}
@@ -188,16 +211,16 @@ function BankUploadCard({ onUploaded }: { onUploaded: (filename: string) => void
     </div>
   )
 }
- 
+
 export default function UploadPage() {
   const [items, setItems] = useState(INITIAL_ITEMS)
- 
+
   const markDone = (id: string, sub: string) => {
     setItems(prev => prev.map(i => i.id === id ? { ...i, status: 'done' as const, sub, iconBg: '#DCFCE7' } : i))
   }
- 
+
   const doneCount = items.filter(i => i.status === 'done').length
- 
+
   return (
     <div>
       <div className="flex items-start justify-between mb-6">
@@ -213,7 +236,7 @@ export default function UploadPage() {
           <Play size={13} /> Start Audit Analysis
         </Link>
       </div>
- 
+
       {/* Progress bar */}
       <div className="flex items-center gap-3 mb-6 px-4 py-3 rounded-xl border"
         style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
@@ -228,12 +251,12 @@ export default function UploadPage() {
           </div>
         </div>
       </div>
- 
+
       <div className="grid gap-4" style={{ gridTemplateColumns: '1fr 1fr' }}>
         <div className="flex flex-col gap-4">
           {/* Tally sync */}
           <TallySyncCard onSyncDone={count => markDone('tally', `✓ ${count} vouchers synced`)} />
- 
+
           {/* Upload checklist */}
           <div className="rounded-xl border overflow-hidden shadow-card" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
             <div className="px-5 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
@@ -260,7 +283,7 @@ export default function UploadPage() {
             </div>
           </div>
         </div>
- 
+
         <div className="flex flex-col gap-4">
           <BankUploadCard onUploaded={filename => markDone('bank', `✓ ${filename} parsed`)} />
         </div>
