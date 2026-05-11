@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from database import init_db
+from database import init_db, SessionLocal, Firm
 
 app = FastAPI(title="AuditIQ API", version="1.0.0")
 
@@ -32,7 +32,23 @@ app.include_router(reports_router, prefix="/api/v1/reports", tags=["Reports"])
 @app.on_event("startup")
 async def startup():
     init_db()
-    print("✅ AuditIQ API ready on port 8080")
+    # Seed default firm if DB is empty (fresh Render deploy)
+    db = SessionLocal()
+    try:
+        if not db.query(Firm).first():
+            default_firm = Firm(
+                firm_name     = "Demo CA Firm",
+                ca_name       = "CA Demo",
+                email         = "demo@auditiq.in",
+                password_hash = "demo",
+                plan          = "trial",
+            )
+            db.add(default_firm)
+            db.commit()
+            print("✅ Default firm created (id=1)")
+    finally:
+        db.close()
+    print("✅ AuditIQ API ready")
 
 @app.get("/")
 def root():
