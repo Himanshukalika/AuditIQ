@@ -1,9 +1,12 @@
 import axios from 'axios'
 
 // ── Axios instance ────────────────────────────────────────
-// Python FastAPI backend localhost:8080 pe chal raha hai
-const API_URL = typeof window === 'undefined'
-  ? (process.env.NEXT_PUBLIC_API_URL || 'https://auditiq-api.onrender.com/api/v1')
+// Electron app: window.electronAPI.isElectron === true → use localhost
+// Web (Vercel): use Render cloud URL
+const isElectron = typeof window !== 'undefined' && (window as any).electronAPI?.isElectron === true
+
+const API_URL = isElectron
+  ? 'http://localhost:8080/api/v1'
   : (process.env.NEXT_PUBLIC_API_URL || 'https://auditiq-api.onrender.com/api/v1')
 
 const api = axios.create({

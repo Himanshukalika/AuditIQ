@@ -1,0 +1,38 @@
+appId: in.auditiq.app
+productName: AuditIQ
+copyright: Copyright © 2025 AuditIQ
+
+directories:
+  output: dist-electron
+
+files:
+  - electron/**/*
+  - .next/**/*
+  - public/**/*
+  - node_modules/**/*
+  - package.json
+  - next.config.*
+
+extraResources:
+  - from: backend/dist/auditiq_backend/
+    to: backend/
+    filter:
+      - "**/*"
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: electron/icon.ico
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: AuditIQ
+  installerIcon: electron/icon.ico
+  uninstallerIcon: electron/icon.ico
+
+# Next.js server is started separately by the Electron main process
+# We do NOT use electron-next server embed — we start `next start` as a child process
