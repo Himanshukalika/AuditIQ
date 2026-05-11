@@ -2,8 +2,12 @@ import axios from 'axios'
 
 // ── Axios instance ────────────────────────────────────────
 // Python FastAPI backend localhost:8080 pe chal raha hai
+const API_URL = typeof window === 'undefined'
+  ? (process.env.NEXT_PUBLIC_API_URL || 'https://auditiq-api.onrender.com/api/v1')
+  : (process.env.NEXT_PUBLIC_API_URL || 'https://auditiq-api.onrender.com/api/v1')
+
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1',
+  baseURL: API_URL,
   timeout: 180000,
   headers: {
     'Content-Type': 'application/json',
